@@ -418,7 +418,6 @@ function showMainApp(clerk) {
             <a href="#dashboard" class="nav-link active" data-page="dashboard">${t('nav.dashboard')}</a>
             <a href="#projects" class="nav-link" data-page="projects">${t('nav.projects')}</a>
             <a href="#subscription" class="nav-link" data-page="subscription">订阅</a>
-            <a href="#api-settings" class="nav-link" data-page="api-settings">${t('nav.apiSettings')}</a>
           </nav>
           <div class="header-right">
             <button id="themeToggle" class="theme-toggle" title="切换主题">
@@ -553,10 +552,6 @@ function showMainApp(clerk) {
         case 'subscription':
           mainContent.innerHTML = createSubscription();
           initSubscription(clerk);
-          break;
-        case 'api-settings':
-          mainContent.innerHTML = createApiSettings();
-          initApiSettings();
           break;
         case 'privacy':
           mainContent.innerHTML = createPrivacyPolicy();
