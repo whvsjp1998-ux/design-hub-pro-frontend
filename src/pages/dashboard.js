@@ -98,7 +98,7 @@ export function createDashboard() {
 
           <div class="result-section">
             <h3 class="section-title">${t('dashboard.currentOutput')}</h3>
-            <div id="resultOutput" class="result-output">${t('dashboard.waitingData')}</div>
+            <textarea id="resultOutput" class="result-output" placeholder="${t('dashboard.waitingData')}" rows="2"></textarea>
           </div>
 
           <div class="action-row">
@@ -221,6 +221,14 @@ export function initDashboard() {
     };
   }
 
+  // 手动编辑结果
+  const resultOutput = document.getElementById('resultOutput');
+  if (resultOutput) {
+    resultOutput.addEventListener('input', (e) => {
+      AppState.batchResults[AppState.currentIndex] = e.target.value;
+    });
+  }
+
   // 拖放功能
   if (imageDisplay) {
     // 点击图片区域上传
@@ -267,7 +275,7 @@ export function initDashboard() {
       const resultOutput = document.getElementById('resultOutput');
       if (resultOutput) {
         const result = AppState.batchResults[AppState.currentIndex];
-        resultOutput.textContent = result || '等待分析数据流...';
+        resultOutput.value = result || '等待分析数据流...';
         resultOutput.style.color = result ? '#fff' : '#9ca3af';
       }
 
@@ -338,7 +346,7 @@ export function initDashboard() {
 
       const resultOutput = document.getElementById('resultOutput');
       if (resultOutput) {
-        resultOutput.textContent = '正在深度分析特征数据...';
+        resultOutput.value = '正在深度分析特征数据...';
         resultOutput.style.color = '#3b82f6';
       }
 
@@ -350,7 +358,7 @@ export function initDashboard() {
 
       AppState.batchResults[AppState.currentIndex] = result;
       if (resultOutput) {
-        resultOutput.textContent = result;
+        resultOutput.value = result;
         resultOutput.style.color = '#fff';
       }
 
@@ -435,7 +443,7 @@ export function initDashboard() {
         // 更新当前处理状态
         const resultOutput = document.getElementById('resultOutput');
         if (resultOutput && AppState.currentIndex === i) {
-          resultOutput.textContent = `正在提取视觉特征: ${file.name}`;
+          resultOutput.value = `正在提取视觉特征: ${file.name}`;
           resultOutput.style.color = '#3b82f6';
         }
 
@@ -455,7 +463,7 @@ export function initDashboard() {
 
         // 如果当前显示的是这张图片，更新结果
         if (AppState.currentIndex === i && resultOutput) {
-          resultOutput.textContent = result;
+          resultOutput.value = result;
           resultOutput.style.color = '#fff';
         }
       }
@@ -471,7 +479,7 @@ export function initDashboard() {
   const btnApplyResult = document.getElementById('btnApplyResult');
   if (btnApplyResult) {
     btnApplyResult.onclick = () => {
-      const result = document.getElementById('resultOutput')?.textContent;
+      const result = document.getElementById('resultOutput')?.value;
       if (!result || result.includes('等待')) return;
 
       const file = AppState.currentQueue[AppState.currentIndex];
