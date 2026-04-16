@@ -78,18 +78,6 @@ themeStyles.textContent = `
     cursor: pointer;
   }
   .theme-toggle:hover { background: var(--bg-tertiary); }
-  .subscription-page { max-width: 1200px; width: 100%; }
-  .pricing-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
-  .pricing-card {
-    background: var(--bg-secondary);
-    border: 2px solid var(--border-color);
-    border-radius: 1rem;
-    padding: 2rem;
-    position: relative;
-  }
-  .pricing-card.featured { border-color: #3b82f6; }
-  .plan-button { width: 100%; padding: 1rem; border: none; border-radius: 0.75rem; font-size: 1rem; font-weight: 600; cursor: pointer; }
-  .plan-button.primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; }
   .lang-dropdown { background: var(--bg-secondary); border-color: var(--border-color); }
 
   /* 公开首页样式 */
