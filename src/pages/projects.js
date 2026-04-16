@@ -1,7 +1,6 @@
-// 导入多语言函数
 import { t } from '../utils/i18n.js';
+import { getOriginalFile } from '../utils/fileStore.js';
 
-// Projects 页面组件
 export function createProjects() {
   return `
     <section class="projects-page">
@@ -35,7 +34,6 @@ export function createProjects() {
   `;
 }
 
-// Projects 功能逻辑
 export function initProjects() {
   loadRecordsTable();
 
@@ -102,7 +100,6 @@ function loadRecordsTable() {
   }).join('');
 }
 
-// 全局函数供 HTML 调用
 window.updateRecordName = function(index, value) {
   const records = JSON.parse(localStorage.getItem('processingRecords') || '[]');
   if (records[index]) {
@@ -116,8 +113,15 @@ window.downloadRecord = function(index) {
   const record = records[index];
   if (!record || !record.newName) return;
 
-  const link = document.createElement('a');
-  link.href = record.thumbnail;
-  link.download = record.newName + record.originalName.substring(record.originalName.lastIndexOf('.'));
-  link.click();
+  const originalFile = getOriginalFile(record.originalName);
+  if (originalFile) {
+    const ext = originalFile.name.substring(originalFile.name.lastIndexOf('.'));
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(originalFile);
+    link.download = record.newName + ext;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  } else {
+    alert('原始文件已丢失（页面刷新后内存中的文件会被清除），请重新上传图片后再试。');
+  }
 };

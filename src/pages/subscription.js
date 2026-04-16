@@ -1,6 +1,8 @@
 import { t } from '../utils/i18n.js';
+import { getSubscriptionPlan, isProUser, getRemainingQuota, getQuotaResetTime, getDaysRemaining, getSubscriptionExpiry } from '../utils/proGuard.js';
 
-// Subscription 页面组件
+const GUMROAD_PRODUCT_URL = 'https://whimsical2103.gumroad.com/l/designhubpro';
+
 export function createSubscription() {
   return `
     <section class="subscription-page">
@@ -9,174 +11,232 @@ export function createSubscription() {
         <p class="page-subtitle">${t('subscription.subtitle') || '选择适合您的计划'}</p>
       </div>
 
+      <div class="quota-info-bar" id="quotaInfoBar">
+        <div class="quota-icon">📊</div>
+        <div class="quota-text">
+          <span id="quotaDisplay">加载中...</span>
+        </div>
+      </div>
+
       <div class="pricing-cards">
-        <!-- 免费计划 -->
         <div class="pricing-card">
-          <div class="plan-badge free">免费</div>
+          <div class="plan-badge free">Free</div>
           <h3 class="plan-name">Free</h3>
           <div class="plan-price">
             <span class="price">$0</span>
-            <span class="period">/月</span>
+            <span class="period">/forever</span>
+          </div>
+          <div class="plan-quota">
+            <span class="quota-label">每日额度</span>
+            <span class="quota-value">10 张/天</span>
           </div>
           <ul class="plan-features">
-            <li>✓ 每月 10 次图像识别</li>
-            <li>✓ 基础识别模式</li>
-            <li>✓ 标准处理速度</li>
-            <li>✗ 批量处理</li>
-            <li>✗ 自定义提示词</li>
-            <li>✗ 优先支持</li>
+            <li>✓ 10 image recognitions / day</li>
+            <li>✓ Basic recognition mode</li>
+            <li>✓ Standard processing speed</li>
+            <li>✗ Batch processing</li>
+            <li>✗ Custom prompts</li>
+            <li>✗ Priority support</li>
           </ul>
-          <button class="plan-button current" disabled>当前计划</button>
+          <button class="plan-button current" disabled>Current Plan</button>
         </div>
 
-        <!-- 付费计划 -->
-        <div class="pricing-card featured">
-          <div class="plan-badge pro">推荐</div>
-          <h3 class="plan-name">Pro</h3>
+        <div class="pricing-card">
+          <div class="plan-badge monthly">Popular</div>
+          <h3 class="plan-name">Monthly</h3>
           <div class="plan-price">
-            <span class="price">$9.99</span>
-            <span class="period">/月</span>
+            <span class="price">$9.9</span>
+            <span class="period">/month</span>
+          </div>
+          <div class="plan-quota">
+            <span class="quota-label">每月额度</span>
+            <span class="quota-value">500 张/月</span>
           </div>
           <ul class="plan-features">
-            <li>✓ 无限次图像识别</li>
-            <li>✓ 所有识别模式</li>
-            <li>✓ 高速处理</li>
-            <li>✓ 批量处理</li>
-            <li>✓ 自定义提示词</li>
-            <li>✓ 优先支持</li>
+            <li>✓ 500 image recognitions / month</li>
+            <li>✓ All recognition modes</li>
+            <li>✓ High-speed processing</li>
+            <li>✓ Batch processing</li>
+            <li>✓ Custom prompts</li>
+            <li>✓ Priority email support</li>
           </ul>
-          <button id="upgradeToPro" class="plan-button primary">升级到 Pro</button>
+          <a href="${GUMROAD_PRODUCT_URL}" target="_blank" rel="noopener" class="plan-button primary" data-plan="monthly">
+            Subscribe Monthly
+          </a>
+        </div>
+
+        <div class="pricing-card">
+          <div class="plan-badge quarterly">Best Value</div>
+          <h3 class="plan-name">Quarterly</h3>
+          <div class="plan-price">
+            <span class="price">$25</span>
+            <span class="period">/3 months</span>
+          </div>
+          <div class="plan-quota">
+            <span class="quota-label">每月额度</span>
+            <span class="quota-value">2000 张/月</span>
+          </div>
+          <div class="plan-savings">
+            <span class="savings-badge">Save 16%</span>
+          </div>
+          <ul class="plan-features">
+            <li>✓ 2000 image recognitions / month</li>
+            <li>✓ All recognition modes</li>
+            <li>✓ High-speed processing</li>
+            <li>✓ Batch processing</li>
+            <li>✓ Custom prompts</li>
+            <li>✓ Priority email support</li>
+          </ul>
+          <a href="${GUMROAD_PRODUCT_URL}" target="_blank" rel="noopener" class="plan-button primary" data-plan="quarterly">
+            Subscribe Quarterly
+          </a>
+        </div>
+
+        <div class="pricing-card featured">
+          <div class="plan-badge pro">Recommended</div>
+          <h3 class="plan-name">Yearly</h3>
+          <div class="plan-price">
+            <span class="price">$89</span>
+            <span class="period">/year</span>
+          </div>
+          <div class="plan-quota">
+            <span class="quota-label">每月额度</span>
+            <span class="quota-value">无限制</span>
+          </div>
+          <div class="plan-savings">
+            <span class="savings-badge">Save 25%</span>
+          </div>
+          <ul class="plan-features">
+            <li>✓ Unlimited image recognition</li>
+            <li>✓ All recognition modes</li>
+            <li>✓ High-speed processing</li>
+            <li>✓ Batch processing</li>
+            <li>✓ Custom prompts</li>
+            <li>✓ 24/7 Priority support</li>
+          </ul>
+          <a href="${GUMROAD_PRODUCT_URL}" target="_blank" rel="noopener" class="plan-button primary featured-btn" data-plan="yearly">
+            Subscribe Yearly
+          </a>
+        </div>
+      </div>
+
+      <div id="proStatusBanner" class="pro-status-banner" style="display:none;">
+        <div class="status-icon">✓</div>
+        <div>
+          <h3 id="proStatusTitle">Pro Activated</h3>
+          <p id="proStatusDesc">Your Pro subscription is active. All features are unlocked.</p>
         </div>
       </div>
 
       <div class="subscription-info">
-        <h3>常见问题</h3>
+        <h3>FAQ</h3>
         <div class="faq-item">
-          <h4>如何取消订阅？</h4>
-          <p>您可以随时在账户设置中取消订阅，取消后将在当前计费周期结束时生效。</p>
+          <h4>How does the purchase work?</h4>
+          <p>Click any subscription plan to purchase via Gumroad. After payment, your account will be automatically upgraded. Please ensure you use the same email as your Design Hub Pro account.</p>
         </div>
         <div class="faq-item">
-          <h4>支持哪些支付方式？</h4>
-          <p>我们支持信用卡、借记卡以及 Apple Pay 等主流支付方式。</p>
+          <h4>What payment methods are supported?</h4>
+          <p>Gumroad supports credit cards, debit cards, PayPal, Apple Pay, and Google Pay.</p>
         </div>
         <div class="faq-item">
-          <h4>可以随时升级或降级吗？</h4>
-          <p>是的，您可以随时更改订阅计划，费用将按比例调整。</p>
+          <h4>How is the quota calculated?</h4>
+          <p>Quota is calculated based on your subscription tier. Free users get 10 images per day, Monthly gets 500/month, Quarterly gets 2000/month, and Yearly gets unlimited access.</p>
+        </div>
+        <div class="faq-item">
+          <h4>What happens when I run out of quota?</h4>
+          <p>You can wait for the next reset period (daily for free, monthly for paid plans) or upgrade to a higher tier.</p>
+        </div>
+        <div class="faq-item">
+          <h4>My subscription hasn't been activated after payment?</h4>
+          <p>Please make sure the email used for the Gumroad purchase matches your Design Hub Pro account email. If the issue persists, contact support with your purchase confirmation.</p>
         </div>
       </div>
     </section>
   `;
 }
 
-// Subscription 功能逻辑
 export function initSubscription(clerk) {
-  console.log('Initializing subscription page');
+  const proBanner = document.getElementById('proStatusBanner');
+  const proTitle = document.getElementById('proStatusTitle');
+  const proDesc = document.getElementById('proStatusDesc');
+  const quotaDisplay = document.getElementById('quotaDisplay');
 
-  const upgradeButton = document.getElementById('upgradeToPro');
+  updateQuotaDisplay();
+  updatePlanButtons();
 
-  if (upgradeButton) {
-    upgradeButton.addEventListener('click', async () => {
-      try {
-        upgradeButton.disabled = true;
-        upgradeButton.textContent = '处理中...';
+  function updateQuotaDisplay() {
+    const plan = getSubscriptionPlan(clerk);
+    const remaining = getRemainingQuota(clerk);
+    const resetTime = getQuotaResetTime(clerk);
+    const daysRemaining = getDaysRemaining(clerk);
+    const expiry = getSubscriptionExpiry(clerk);
 
-        // 使用 Clerk 的订阅功能
-        // 注意：这需要在 Clerk Dashboard 中配置 Billing
-        const session = await clerk.session;
+    if (plan === 'free') {
+      quotaDisplay.innerHTML = `
+        <strong>Free Plan</strong> — ${remaining} 次剩余 / 今日
+        <span style="color: var(--text-secondary); font-size: 0.85em; margin-left: 0.5rem;">
+          (重置于 ${resetTime})
+        </span>
+      `;
+    } else if (plan === 'unlimited') {
+      const expiryDate = expiry ? new Date(expiry).toLocaleDateString('zh-CN') : '长期有效';
+      quotaDisplay.innerHTML = `
+        <strong>Yearly Plan</strong> — 无限制访问
+        <span style="color: var(--text-secondary); font-size: 0.85em; margin-left: 0.5rem;">
+          (到期日: ${expiryDate}, 剩余 ${daysRemaining} 天)
+        </span>
+      `;
+    } else if (plan === 'monthly') {
+      const expiryDate = expiry ? new Date(expiry).toLocaleDateString('zh-CN') : resetTime;
+      quotaDisplay.innerHTML = `
+        <strong>Monthly Plan</strong> — ${remaining} 次剩余 / 本月
+        <span style="color: var(--text-secondary); font-size: 0.85em; margin-left: 0.5rem;">
+          (到期日: ${expiryDate}, 剩余 ${daysRemaining} 天)
+        </span>
+      `;
+    } else if (plan === 'quarterly') {
+      const expiryDate = expiry ? new Date(expiry).toLocaleDateString('zh-CN') : resetTime;
+      quotaDisplay.innerHTML = `
+        <strong>Quarterly Plan</strong> — ${remaining} 次剩余 / 本季
+        <span style="color: var(--text-secondary); font-size: 0.85em; margin-left: 0.5rem;">
+          (到期日: ${expiryDate}, 剩余 ${daysRemaining} 天)
+        </span>
+      `;
+    }
+  }
 
-        if (!session) {
-          alert('请先登录');
-          return;
-        }
+  function updatePlanButtons() {
+    const currentPlan = getSubscriptionPlan(clerk);
+    const buttons = document.querySelectorAll('.plan-button[data-plan]');
 
-        // 创建订阅会话
-        // 这里需要您在 Clerk Dashboard 中配置产品和价格
-        const checkoutUrl = await createCheckoutSession(clerk);
-
-        if (checkoutUrl) {
-          window.location.href = checkoutUrl;
-        } else {
-          alert('暂时无法处理订阅，请稍后再试');
-        }
-
-      } catch (error) {
-        console.error('Subscription error:', error);
-        alert('订阅失败，请稍后再试');
-      } finally {
-        upgradeButton.disabled = false;
-        upgradeButton.textContent = '升级到 Pro';
+    buttons.forEach(btn => {
+      const plan = btn.dataset.plan;
+      if (currentPlan === plan) {
+        btn.textContent = '✓ Current Plan';
+        btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        btn.style.pointerEvents = 'none';
       }
     });
   }
 
-  // 检查当前订阅状态
-  checkSubscriptionStatus(clerk);
-}
+  if (isProUser(clerk)) {
+    if (proBanner) proBanner.style.display = 'flex';
+    if (proTitle) {
+      const plan = getSubscriptionPlan(clerk);
+      const daysRemaining = getDaysRemaining(clerk);
+      const expiry = getSubscriptionExpiry(clerk);
+      const expiryDate = expiry ? new Date(expiry).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '长期有效';
 
-// 创建 Checkout 会话
-async function createCheckoutSession(clerk) {
-  try {
-    const token = await clerk.session.getToken();
-
-    // 调用后端 API 创建 Stripe Checkout 会话
-    const response = await fetch('http://localhost:3001/api/create-subscription', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        planId: 'cplan_3CA0KSiMydMyeHCHv6H3s5SK3SP',
-        priceId: 'price_1TLMdcFhjD4vnEGKBBoWgoDx',
-        successUrl: window.location.origin + '/#subscription?success=true',
-        cancelUrl: window.location.origin + '/#subscription?canceled=true',
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to create checkout session');
-    }
-
-    const data = await response.json();
-    return data.checkoutUrl;
-
-  } catch (error) {
-    console.error('Failed to create checkout session:', error);
-    alert('订阅功能需要启动后端服务器。\n\n请运行: npm run server');
-    return null;
-  }
-}
-
-// 检查订阅状态
-async function checkSubscriptionStatus(clerk) {
-  try {
-    const user = clerk.user;
-
-    if (!user) return;
-
-    // 检查用户的订阅状态
-    // 这需要从 Clerk 的用户元数据或订阅 API 中获取
-    const subscription = user.publicMetadata?.subscription;
-
-    if (subscription?.plan === 'pro') {
-      // 用户已订阅 Pro
-      const currentButton = document.querySelector('.plan-button.current');
-      const proButton = document.getElementById('upgradeToPro');
-
-      if (currentButton) {
-        currentButton.classList.remove('current');
-        currentButton.disabled = false;
-        currentButton.textContent = '降级到免费';
-      }
-
-      if (proButton) {
-        proButton.classList.add('current');
-        proButton.disabled = true;
-        proButton.textContent = '当前计划';
+      if (plan === 'unlimited') {
+        proTitle.textContent = 'Yearly Plan Active';
+        proDesc.textContent = `无限制访问 — 到期日: ${expiryDate} (剩余 ${daysRemaining} 天)`;
+      } else if (plan === 'monthly') {
+        proTitle.textContent = 'Monthly Plan Active';
+        proDesc.textContent = `500 张/月 — 到期日: ${expiryDate} (剩余 ${daysRemaining} 天)`;
+      } else if (plan === 'quarterly') {
+        proTitle.textContent = 'Quarterly Plan Active';
+        proDesc.textContent = `2000 张/月 — 到期日: ${expiryDate} (剩余 ${daysRemaining} 天)`;
       }
     }
-
-  } catch (error) {
-    console.error('Failed to check subscription status:', error);
   }
 }

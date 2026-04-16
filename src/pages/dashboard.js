@@ -1,4 +1,7 @@
-// 全局状态管理
+import { t } from '../utils/i18n.js';
+import { isProUser, requirePro, consumeQuota, getRemainingQuota, getQuotaInfo, getDaysRemaining, getSubscriptionExpiry } from '../utils/proGuard.js';
+import { storeOriginalFile, getOriginalFile, clearAllFiles } from '../utils/fileStore.js';
+
 const AppState = {
   currentQueue: [],
   currentIndex: 0,
@@ -8,10 +11,6 @@ const AppState = {
   isProcessing: false,
 };
 
-// 导入多语言函数
-import { t } from '../utils/i18n.js';
-
-// Dashboard 页面组件
 export function createDashboard() {
   return `
     <section class="dashboard-page">
@@ -20,6 +19,10 @@ export function createDashboard() {
           <div class="status-banner">
             <div id="serviceStatusDot" class="status-dot"></div>
             <span id="serviceStatusText" class="status-text">${t('dashboard.serviceStatus')}: ${t('dashboard.disconnected')}</span>
+          </div>
+
+          <div id="quotaBanner" class="quota-banner">
+            <span id="quotaText">加载中...</span>
           </div>
 
           <div id="imageDisplay" class="image-display">
@@ -126,6 +129,7 @@ export function initDashboard(clerk) {
 
   AppState.isConnected = true;
   updateConnectionUI();
+  updateQuotaBanner();
 
   if (AppState.currentQueue.length > 0) {
     displayCurrentImage();
@@ -153,16 +157,86 @@ export function initDashboard(clerk) {
     return false;
   }
 
+  function updateQuotaBanner() {
+    const quotaBanner = document.getElementById('quotaBanner');
+    const quotaText = document.getElementById('quotaText');
+    if (!quotaBanner || !quotaText) return;
+
+    const info = getQuotaInfo(clerk);
+    const remaining = getRemainingQuota(clerk);
+    const daysRemaining = getDaysRemaining(clerk);
+    const expiry = getSubscriptionExpiry(clerk);
+
+    if (remaining === Infinity) {
+      const expiryDate = expiry ? new Date(expiry).toLocaleDateString('zh-CN') : '长期有效';
+      quotaText.innerHTML = `🌟 <strong>Unlimited</strong> - 所有功能已解锁 <span style="font-size: 0.85em; opacity: 0.9;">(到期: ${expiryDate}, 剩余 ${daysRemaining} 天)</span>`;
+      quotaBanner.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+    } else if (remaining > 0) {
+      if (info.isTrial) {
+        quotaText.innerHTML = `🎁 <strong>Trial</strong> - 剩余 ${remaining} 次 (试用还剩 ${info.trialDaysLeft} 天)`;
+        quotaBanner.style.background = 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)';
+      } else {
+        const expiryDate = expiry ? new Date(expiry).toLocaleDateString('zh-CN') : '下月重置';
+        quotaText.innerHTML = `📊 <strong>${info.planLabel}</strong> - 剩余 ${remaining} 次 <span style="font-size: 0.85em; opacity: 0.9;">(到期: ${expiryDate}, 剩余 ${daysRemaining} 天)</span>`;
+        quotaBanner.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+      }
+    } else {
+      quotaText.innerHTML = '⚠️ <strong>额度已用完</strong> - 请升级或等待重置';
+      quotaBanner.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+    }
+  }
+
+  function resizeImageToBase64(file, maxSize, quality) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.naturalWidth;
+        let height = img.naturalHeight;
+
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = Math.round(height * maxSize / width);
+            width = maxSize;
+          } else {
+            width = Math.round(width * maxSize / height);
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const base64 = canvas.toDataURL('image/jpeg', quality);
+        URL.revokeObjectURL(url);
+        resolve(base64);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
+      img.src = url;
+    });
+  }
+
   async function fetchAnalyzeWithTimeout(file, mode) {
     try {
-      console.log('API call:', file.name, 'mode:', mode);
-      const formData = new FormData();
-      formData.append('image', file);
-      formData.append('mode', mode);
+      const imageBase64 = await resizeImageToBase64(file, 1024, 0.8);
+      if (!imageBase64) {
+        throw new Error('Failed to compress image for AI');
+      }
+
+      const body = {
+        image_base64: imageBase64,
+        mode: mode
+      };
 
       const customPromptInput = document.getElementById('customPromptInput');
       if (mode === 'custom' && customPromptInput) {
-        formData.append('customPrompt', customPromptInput.value);
+        body.customPrompt = customPromptInput.value;
       }
 
       const controller = new AbortController();
@@ -174,7 +248,8 @@ export function initDashboard(clerk) {
       console.log('Sending to:', `${API_BASE}/api/analyze`);
       const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -226,7 +301,6 @@ export function initDashboard(clerk) {
     };
   }
 
-  // 手动编辑结果
   const resultOutput = document.getElementById('resultOutput');
   if (resultOutput) {
     resultOutput.addEventListener('input', (e) => {
@@ -234,9 +308,7 @@ export function initDashboard(clerk) {
     });
   }
 
-  // 拖放功能
   if (imageDisplay) {
-    // 点击图片区域上传
     imageDisplay.addEventListener('click', () => {
       fileInput?.click();
     });
@@ -260,6 +332,8 @@ export function initDashboard(clerk) {
   }
 
   function handleFiles(files) {
+    clearAllFiles();
+    files.forEach(f => storeOriginalFile(f.name, f));
     AppState.currentQueue = files;
     AppState.currentIndex = 0;
     AppState.batchResults = {};
@@ -305,12 +379,16 @@ export function initDashboard(clerk) {
     }
   }
 
-  // 模式选择
   document.querySelectorAll('.mode-option').forEach(option => {
     option.addEventListener('click', () => {
+      const mode = option.dataset.mode;
+      if ((mode === 'custom' || mode === 'image') && !isProUser(clerk)) {
+        requirePro(clerk);
+        return;
+      }
       document.querySelectorAll('.mode-option').forEach(o => o.classList.remove('active'));
       option.classList.add('active');
-      AppState.selectedMode = option.dataset.mode;
+      AppState.selectedMode = mode;
       const customSection = document.getElementById('customPromptSection');
       if (customSection) {
         customSection.classList.toggle('hidden', AppState.selectedMode !== 'custom');
@@ -318,7 +396,6 @@ export function initDashboard(clerk) {
     });
   });
 
-  // 导航按钮
   const btnPrev = document.getElementById('btnPrevious');
   const btnNext = document.getElementById('btnNext');
   if (btnPrev) {
@@ -338,12 +415,16 @@ export function initDashboard(clerk) {
     };
   }
 
-  // 单张识别
   const btnAnalyzeSingle = document.getElementById('btnAnalyzeSingle');
   if (btnAnalyzeSingle) {
     btnAnalyzeSingle.onclick = async () => {
       if (!requireLogin()) return;
       if (!AppState.isConnected || AppState.currentQueue.length === 0) return;
+
+      if (!consumeQuota(clerk)) {
+        requirePro(clerk);
+        return;
+      }
 
       const file = AppState.currentQueue[AppState.currentIndex];
       const btnText = document.getElementById('btnSingleText');
@@ -356,7 +437,9 @@ export function initDashboard(clerk) {
         resultOutput.style.color = '#3b82f6';
       }
 
-      const thumb = await getBase64(file);
+      updateQuotaBanner();
+
+      const thumb = await resizeImageToBase64(file, 200, 0.6);
       const result = await fetchAnalyzeWithTimeout(file, AppState.selectedMode);
 
       AppState.batchResults[AppState.currentIndex] = result;
@@ -375,31 +458,20 @@ export function initDashboard(clerk) {
     };
   }
 
-  // 获取 Base64 图片
-  function getBase64(file) {
-    return new Promise(resolve => {
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result);
-      reader.readAsDataURL(file);
-    });
-  }
-
-  // 添加或更新记录到 localStorage
   function addOrUpdateRecord(originalName, newName, thumbnail, status) {
     try {
       let records = JSON.parse(localStorage.getItem('processingRecords') || '[]');
       const idx = records.findIndex(r => r.originalName === originalName);
 
-      // 压缩缩略图
-      let compressedThumb = thumbnail;
-      if (thumbnail && thumbnail.startsWith('data:image') && thumbnail.length > 50000) {
-        compressedThumb = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23333' width='100' height='100'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='%23999' font-size='12'%3EIMG%3C/text%3E%3C/svg%3E";
+      let displayThumb = thumbnail;
+      if (thumbnail && thumbnail.length > 50000) {
+        displayThumb = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23333' width='100' height='100'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='%23999' font-size='12'%3EIMG%3C/text%3E%3C/svg%3E";
       }
 
       const entry = {
         originalName,
         newName,
-        thumbnail: compressedThumb,
+        thumbnail: displayThumb,
         status,
         time: new Date().toLocaleTimeString('en-US', { hour12: false })
       };
@@ -410,7 +482,6 @@ export function initDashboard(clerk) {
         records.unshift(entry);
       }
 
-      // 限制记录数量为20条
       if (records.length > 20) records = records.slice(0, 20);
 
       localStorage.setItem('processingRecords', JSON.stringify(records));
@@ -419,12 +490,18 @@ export function initDashboard(clerk) {
     }
   }
 
-  // 批量识别
   const btnBatchProcess = document.getElementById('btnBatchProcess');
   if (btnBatchProcess) {
     btnBatchProcess.onclick = async () => {
       if (!requireLogin()) return;
+      if (!isProUser(clerk)) { requirePro(clerk); return; }
       if (!AppState.isConnected || AppState.currentQueue.length === 0 || AppState.isProcessing) return;
+
+      const remaining = getRemainingQuota(clerk);
+      if (remaining !== Infinity && remaining < AppState.currentQueue.length) {
+        alert(`您的剩余配额（${remaining}次）不足以处理全部 ${AppState.currentQueue.length} 张图片。\n请升级或等待配额重置。`);
+        return;
+      }
 
       AppState.isProcessing = true;
       const btnText = document.getElementById('btnBatchText');
@@ -435,8 +512,13 @@ export function initDashboard(clerk) {
       if (progressBar) progressBar.classList.remove('hidden');
 
       for (let i = 0; i < AppState.currentQueue.length; i++) {
+        if (!consumeQuota(clerk)) {
+          alert(`配额已用完！已处理 ${i} 张图片。`);
+          break;
+        }
+
         const file = AppState.currentQueue[i];
-        const thumb = await getBase64(file);
+        const thumb = await resizeImageToBase64(file, 200, 0.6);
         addOrUpdateRecord(file.name, "AI Processing...", thumb, 'processing');
 
         const resultOutput = document.getElementById('resultOutput');
@@ -460,16 +542,18 @@ export function initDashboard(clerk) {
           resultOutput.value = result;
           resultOutput.style.color = '#fff';
         }
+
+        updateQuotaBanner();
       }
 
       AppState.isProcessing = false;
       if (btnText) btnText.textContent = 'Start Batch';
       btnBatchProcess.disabled = false;
+      updateQuotaBanner();
       alert('Batch processing complete! All results synced to Projects.');
     };
   }
 
-  // 应用结果
   const btnApplyResult = document.getElementById('btnApplyResult');
   if (btnApplyResult) {
     btnApplyResult.onclick = () => {
@@ -477,11 +561,13 @@ export function initDashboard(clerk) {
       if (!result || result.includes('等待')) return;
 
       const file = AppState.currentQueue[AppState.currentIndex];
-      const ext = file.name.substring(file.name.lastIndexOf('.'));
+      const originalFile = getOriginalFile(file.name) || file;
+      const ext = originalFile.name.substring(originalFile.name.lastIndexOf('.'));
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(file);
+      link.href = URL.createObjectURL(originalFile);
       link.download = result + ext;
       link.click();
+      URL.revokeObjectURL(link.href);
     };
   }
 }

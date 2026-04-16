@@ -4,6 +4,7 @@
   "installCommand": "npm install",
   "framework": "vite",
   "rewrites": [
+    { "source": "/api/gumroad-webhook", "destination": "/api/gumroad-webhook.js" },
     { "source": "/api/:path*", "destination": "https://web-production-a3a73c.up.railway.app/api/:path*" }
   ],
   "env": {

@@ -7,6 +7,7 @@ import { createSubscription, initSubscription } from './pages/subscription.js';
 import { createPrivacyPolicy, initPrivacyPolicy } from './pages/privacy.js';
 import { createTermsOfService, initTermsOfService } from './pages/terms.js';
 import { t, setLanguage, getCurrentLanguage } from './utils/i18n.js';
+import { isProUser } from './utils/proGuard.js';
 
 console.log('Main.js loaded');
 
@@ -136,6 +137,51 @@ themeStyles.textContent = `
     border-radius: 1rem;
     padding: 1.5rem;
     text-align: left;
+  }
+  .pro-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 0.375rem;
+    letter-spacing: 0.05em;
+    margin-right: 0.5rem;
+  }
+  .pro-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding: 1.25rem 1.5rem;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 0.75rem;
+  }
+  .pro-status-banner .status-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.25rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .pro-status-banner h3 {
+    margin: 0;
+    color: #10b981;
+    font-size: 1rem;
+  }
+  .pro-status-banner p {
+    margin: 0.25rem 0 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
   }
 `;
 document.head.appendChild(themeStyles);
@@ -302,8 +348,11 @@ function showMainApp(clerk, page = 'dashboard') {
   isRendering = true;
 
   const isLoggedIn = !!clerk.user;
+  const proBadge = isLoggedIn && isProUser(clerk)
+    ? '<span class="pro-badge">PRO</span>'
+    : '';
   const userButtonHtml = isLoggedIn 
-    ? '<div id="user-button" class="user-button-container"></div>'
+    ? `${proBadge}<div id="user-button" class="user-button-container"></div>`
     : '<button id="signInBtn" class="cta-button" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Sign In</button>';
 
   document.getElementById('app').innerHTML = `
