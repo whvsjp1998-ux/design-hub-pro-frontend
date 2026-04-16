@@ -10,7 +10,7 @@ import { t, setLanguage, getCurrentLanguage } from './utils/i18n.js';
 
 console.log('Main.js loaded');
 
-const ALL_ROUTES = ['home', 'dashboard', 'projects', 'apiSettings', 'subscription', 'privacy', 'terms'];
+const ALL_ROUTES = ['home', 'dashboard', 'projects', 'subscription', 'privacy', 'terms'];
 
 // 主题管理
 const ThemeManager = {
@@ -242,8 +242,8 @@ function createLandingPage() {
         <div class="header-content">
           <h1 class="app-title">Design Hub Pro</h1>
           <nav class="app-nav">
-            <a href="#home" class="nav-link ${currentPage === 'home' ? 'active' : ''}" data-page="home">首页</a>
-            <a href="#subscription" class="nav-link" data-page="subscription">定价</a>
+            <a href="#home" class="nav-link ${currentPage === 'home' ? 'active' : ''}" data-page="home">Home</a>
+            <a href="#subscription" class="nav-link" data-page="subscription">Pricing</a>
           </nav>
           <div class="header-right">
             <button id="themeToggle" class="theme-toggle">
@@ -252,7 +252,7 @@ function createLandingPage() {
               </svg>
             </button>
             <button id="signInBtn" class="cta-button" style="margin-left: 1rem; padding: 0.5rem 1rem;">
-              登录
+              Sign In
             </button>
           </div>
         </div>
@@ -304,7 +304,7 @@ function showMainApp(clerk, page = 'dashboard') {
   const isLoggedIn = !!clerk.user;
   const userButtonHtml = isLoggedIn 
     ? '<div id="user-button" class="user-button-container"></div>'
-    : '<button id="signInBtn" class="cta-button" style="padding: 0.5rem 1rem; font-size: 0.875rem;">登录</button>';
+    : '<button id="signInBtn" class="cta-button" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Sign In</button>';
 
   document.getElementById('app').innerHTML = `
     <div class="main-app">
@@ -312,10 +312,9 @@ function showMainApp(clerk, page = 'dashboard') {
         <div class="header-content">
           <h1 class="app-title">Design Hub Pro</h1>
           <nav class="app-nav">
-            <a href="#dashboard" class="nav-link ${page === 'dashboard' ? 'active' : ''}" data-page="dashboard">${t('nav.dashboard')}</a>
-            <a href="#projects" class="nav-link ${page === 'projects' ? 'active' : ''}" data-page="projects">${t('nav.projects')}</a>
-            <a href="#apiSettings" class="nav-link ${page === 'apiSettings' ? 'active' : ''}" data-page="apiSettings">${t('nav.apiSettings')}</a>
-            <a href="#subscription" class="nav-link ${page === 'subscription' ? 'active' : ''}" data-page="subscription">订阅</a>
+            <a href="#dashboard" class="nav-link ${page === 'dashboard' ? 'active' : ''}" data-page="dashboard">Dashboard</a>
+            <a href="#projects" class="nav-link ${page === 'projects' ? 'active' : ''}" data-page="projects">Projects</a>
+            <a href="#subscription" class="nav-link ${page === 'subscription' ? 'active' : ''}" data-page="subscription">Subscription</a>
           </nav>
           <div class="header-right">
             <button id="themeToggle" class="theme-toggle">
@@ -390,7 +389,7 @@ function setupHeaderControls() {
       const modal = document.createElement('div');
       modal.id = 'sign-in-modal';
       modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;';
-      modal.innerHTML = '<div id="sign-in"></div><button id="closeModal" style="position:absolute;top:20px;right:20px;background:#333;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;">关闭</button>';
+      modal.innerHTML = '<div id="sign-in"></div><button id="closeModal" style="position:absolute;top:20px;right:20px;background:#333;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;">Close</button>';
       document.body.appendChild(modal);
       const signInDiv = document.getElementById('sign-in');
       clerk.mountSignIn(signInDiv);
@@ -416,9 +415,8 @@ function getPageContent(page, clerk) {
 // 初始化页面
 function initPage(page, clerk) {
   switch (page) {
-    case 'dashboard': initDashboard(); break;
+    case 'dashboard': initDashboard(clerk); break;
     case 'projects': initProjects(); break;
-    case 'apiSettings': initApiSettings(clerk); break;
     case 'subscription': initSubscription(clerk); break;
     case 'privacy': initPrivacyPolicy(); break;
     case 'terms': initTermsOfService(); break;

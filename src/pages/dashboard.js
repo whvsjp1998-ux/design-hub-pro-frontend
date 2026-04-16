@@ -121,14 +121,10 @@ export function createDashboard() {
   `;
 }
 
-export function initDashboard() {
+export function initDashboard(clerk) {
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-  const apiConfig = JSON.parse(localStorage.getItem('apiConfig') || '{}');
-  if (apiConfig.provider && apiConfig.apiKey) {
-    AppState.isConnected = true;
-  }
-
+  AppState.isConnected = true;
   updateConnectionUI();
 
   if (AppState.currentQueue.length > 0) {
@@ -143,17 +139,23 @@ export function initDashboard() {
     document.getElementById('customPromptSection')?.classList.remove('hidden');
   }
 
+  function requireLogin() {
+    if (clerk && clerk.user) return true;
+    const modal = document.createElement('div');
+    modal.id = 'sign-in-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;';
+    modal.innerHTML = '<div id="sign-in"></div><button id="closeModal" style="position:absolute;top:20px;right:20px;background:#333;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;">Close</button>';
+    document.body.appendChild(modal);
+    const signInDiv = document.getElementById('sign-in');
+    clerk.mountSignIn(signInDiv);
+    document.getElementById('closeModal').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    return false;
+  }
+
   async function fetchAnalyzeWithTimeout(file, mode) {
-    const currentConfig = JSON.parse(localStorage.getItem('apiConfig') || '{}');
-
-    if (!currentConfig.provider || !currentConfig.apiKey) {
-      console.error('API未配置，请先在 API Settings 中配置');
-      await new Promise(r => setTimeout(r, 500));
-      return '请先配置API密钥';
-    }
-
     try {
-      console.log('开始API调用:', file.name, 'mode:', mode, 'provider:', currentConfig.provider);
+      console.log('API call:', file.name, 'mode:', mode);
       const formData = new FormData();
       formData.append('image', file);
       formData.append('mode', mode);
@@ -165,36 +167,32 @@ export function initDashboard() {
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.error('请求超时，60秒未响应');
+        console.error('Request timeout');
         controller.abort();
       }, 60000);
 
-      console.log('发送请求到:', `${API_BASE}/api/analyze`);
+      console.log('Sending to:', `${API_BASE}/api/analyze`);
       const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
         body: formData,
-        headers: {
-          'X-API-Provider': currentConfig.provider,
-          'X-API-Key': currentConfig.apiKey,
-        },
         signal: controller.signal
       });
       clearTimeout(timeoutId);
 
-      console.log('收到响应:', response.status, response.statusText);
+      console.log('Response:', response.status, response.statusText);
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('HTTP错误:', response.status, errorText);
+        console.error('HTTP error:', response.status, errorText);
         throw new Error(`HTTP Error: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('解析结果:', data);
-      return data.success ? data.result : `分析失败: ${data.error || '未知错误'}`;
+      console.log('Result:', data);
+      return data.success ? data.result : `Analysis failed: ${data.error || 'Unknown error'}`;
     } catch (error) {
-      console.error('API调用失败:', error.name, error.message);
+      console.error('API call failed:', error.name, error.message);
       if (error.name === 'AbortError') {
-        return '请求超时，请重试';
+        return 'Request timeout, please retry';
       }
       await new Promise(r => setTimeout(r, 800));
       if (mode === 'text') return `AI_Image_${Math.floor(Math.random()*1000)}`;
@@ -204,17 +202,15 @@ export function initDashboard() {
     }
   }
 
-  // 更新连接状态 UI
   function updateConnectionUI() {
     const dot = document.getElementById('serviceStatusDot');
     const text = document.getElementById('serviceStatusText');
     if (dot && text) {
       dot.className = AppState.isConnected ? 'status-dot connected' : 'status-dot';
-      text.textContent = AppState.isConnected ? '服务状态: 已连接' : '服务状态: 未连接';
+      text.textContent = AppState.isConnected ? 'Service Status: Connected' : 'Service Status: Disconnected';
     }
   }
 
-  // 文件选择
   const fileInput = document.getElementById('fileInput');
   const btnAddImages = document.getElementById('btnAddImages');
   const imageDisplay = document.getElementById('imageDisplay');
@@ -346,23 +342,21 @@ export function initDashboard() {
   const btnAnalyzeSingle = document.getElementById('btnAnalyzeSingle');
   if (btnAnalyzeSingle) {
     btnAnalyzeSingle.onclick = async () => {
+      if (!requireLogin()) return;
       if (!AppState.isConnected || AppState.currentQueue.length === 0) return;
 
       const file = AppState.currentQueue[AppState.currentIndex];
       const btnText = document.getElementById('btnSingleText');
-      if (btnText) btnText.textContent = '分析中...';
+      if (btnText) btnText.textContent = 'Analyzing...';
       btnAnalyzeSingle.disabled = true;
 
       const resultOutput = document.getElementById('resultOutput');
       if (resultOutput) {
-        resultOutput.value = '正在深度分析特征数据...';
+        resultOutput.value = 'Analyzing image features...';
         resultOutput.style.color = '#3b82f6';
       }
 
-      // 获取缩略图
       const thumb = await getBase64(file);
-
-      // 真实 API 调用
       const result = await fetchAnalyzeWithTimeout(file, AppState.selectedMode);
 
       AppState.batchResults[AppState.currentIndex] = result;
@@ -371,13 +365,12 @@ export function initDashboard() {
         resultOutput.style.color = '#fff';
       }
 
-      // 保存到 Projects 记录
       addOrUpdateRecord(file.name, result, thumb, 'completed');
 
       const btnApply = document.getElementById('btnApplyResult');
       if (btnApply) btnApply.disabled = false;
 
-      if (btnText) btnText.textContent = '单张识别';
+      if (btnText) btnText.textContent = 'Analyze Single';
       btnAnalyzeSingle.disabled = false;
     };
   }
@@ -430,11 +423,12 @@ export function initDashboard() {
   const btnBatchProcess = document.getElementById('btnBatchProcess');
   if (btnBatchProcess) {
     btnBatchProcess.onclick = async () => {
+      if (!requireLogin()) return;
       if (!AppState.isConnected || AppState.currentQueue.length === 0 || AppState.isProcessing) return;
 
       AppState.isProcessing = true;
       const btnText = document.getElementById('btnBatchText');
-      if (btnText) btnText.textContent = '处理中...';
+      if (btnText) btnText.textContent = 'Processing...';
       btnBatchProcess.disabled = true;
 
       const progressBar = document.getElementById('progressBar');
@@ -442,35 +436,26 @@ export function initDashboard() {
 
       for (let i = 0; i < AppState.currentQueue.length; i++) {
         const file = AppState.currentQueue[i];
-
-        // 获取缩略图
         const thumb = await getBase64(file);
+        addOrUpdateRecord(file.name, "AI Processing...", thumb, 'processing');
 
-        // 添加处理中的记录
-        addOrUpdateRecord(file.name, "AI 自动识别中...", thumb, 'processing');
-
-        // 更新当前处理状态
         const resultOutput = document.getElementById('resultOutput');
         if (resultOutput && AppState.currentIndex === i) {
-          resultOutput.value = `正在提取视觉特征: ${file.name}`;
+          resultOutput.value = `Extracting features: ${file.name}`;
           resultOutput.style.color = '#3b82f6';
         }
 
-        // 真实 API 调用
         const result = await fetchAnalyzeWithTimeout(file, AppState.selectedMode);
         AppState.batchResults[i] = result;
 
-        // 更新为完成状态
         addOrUpdateRecord(file.name, result, thumb, 'completed');
 
-        // 更新进度
         const percent = Math.round(((i + 1) / AppState.currentQueue.length) * 100);
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
         if (progressFill) progressFill.style.width = percent + '%';
         if (progressText) progressText.textContent = `${percent}% (${i + 1}/${AppState.currentQueue.length})`;
 
-        // 如果当前显示的是这张图片，更新结果
         if (AppState.currentIndex === i && resultOutput) {
           resultOutput.value = result;
           resultOutput.style.color = '#fff';
@@ -478,9 +463,9 @@ export function initDashboard() {
       }
 
       AppState.isProcessing = false;
-      if (btnText) btnText.textContent = '开启批量识别';
+      if (btnText) btnText.textContent = 'Start Batch';
       btnBatchProcess.disabled = false;
-      alert('批量任务处理完毕！已全部同步至 Projects。');
+      alert('Batch processing complete! All results synced to Projects.');
     };
   }
 
