@@ -136,9 +136,6 @@ export function consumeQuota(clerk, count = 1) {
 
   if (config.limit === Infinity) return true;
 
-  const trial = getTrialStatus();
-  if (trial.isTrial && plan === 'free') return true;
-
   const { today, month } = getCurrentPeriod();
   const storageKey = plan === 'free' ? STORAGE_KEYS.freeUsage : STORAGE_KEYS.monthlyUsage;
 
