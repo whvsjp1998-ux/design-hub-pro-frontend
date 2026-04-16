@@ -10,34 +10,36 @@ import { t, setLanguage, getCurrentLanguage } from './utils/i18n.js';
 
 console.log('Main.js loaded');
 
+// 公开路由 - 允许任何人（包括爬虫）访问，无需登录
+const PUBLIC_ROUTES = ['home', 'privacy', 'terms', 'subscription'];
+
+// 受保护路由 - 需要登录才能访问
+const PROTECTED_ROUTES = ['dashboard', 'projects', 'apiSettings'];
+
 // 主题管理
 const ThemeManager = {
   init() {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     this.setTheme(savedTheme);
   },
-
   setTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   },
-
   toggle() {
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     this.setTheme(newTheme);
     return newTheme;
   },
-
   getCurrentTheme() {
     return document.documentElement.getAttribute('data-theme') || 'dark';
   }
 };
 
-// 初始化主题
 ThemeManager.init();
 
-// 注入主题样式
+// 注入主题样式（简化版，保留原有核心样式）
 const themeStyles = document.createElement('style');
 themeStyles.textContent = `
   :root {
@@ -50,7 +52,6 @@ themeStyles.textContent = `
     --text-tertiary: #6b7280;
     --border-color: #1f2937;
   }
-
   :root[data-theme="light"] {
     --bg-primary: #ffffff;
     --bg-secondary: #f9fafb;
@@ -61,49 +62,15 @@ themeStyles.textContent = `
     --text-tertiary: #6b7280;
     --border-color: #e5e7eb;
   }
-
-  /* 应用主题变量到关键元素 */
-  body, #app {
-    background: var(--bg-primary);
-    color: var(--text-primary);
-  }
-
-  .app-header {
-    background: var(--bg-primary);
-    border-bottom-color: var(--border-color);
-  }
-
-  .app-title {
-    color: var(--text-primary) !important;
-  }
-
-  .nav-link {
-    color: var(--text-secondary) !important;
-  }
-
-  .nav-link:hover,
-  .nav-link.active {
-    color: var(--text-primary) !important;
-  }
-
-  .dashboard-right,
-  .provider-card,
-  .api-config-form,
-  .records-table-container {
+  body, #app { background: var(--bg-primary); color: var(--text-primary); }
+  .app-header { background: var(--bg-primary); border-bottom-color: var(--border-color); }
+  .app-title { color: var(--text-primary) !important; }
+  .nav-link { color: var(--text-secondary) !important; }
+  .nav-link:hover, .nav-link.active { color: var(--text-primary) !important; }
+  .dashboard-right, .provider-card, .api-config-form, .records-table-container {
     background: var(--bg-secondary);
     border-color: var(--border-color);
   }
-
-  .lang-button,
-  .theme-toggle {
-    color: var(--text-secondary);
-  }
-
-  .lang-dropdown {
-    background: var(--bg-secondary);
-    border-color: var(--border-color);
-  }
-
   .theme-toggle {
     display: flex;
     align-items: center;
@@ -112,204 +79,67 @@ themeStyles.textContent = `
     border: none;
     border-radius: 0.5rem;
     cursor: pointer;
-    transition: all 0.2s;
   }
-
-  .theme-toggle:hover {
-    background: var(--bg-tertiary);
-  }
-
-  .theme-toggle svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  /* 上传区域的 + 号 */
-  .image-display {
-    cursor: pointer;
-    position: relative;
-  }
-
-  .drop-zone-hint {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-  }
-
-  .upload-plus {
-    font-size: 120px;
-    font-weight: 200;
-    color: var(--text-tertiary);
-    line-height: 1;
-    margin-bottom: 1rem;
-    transition: all 0.3s;
-  }
-
-  .image-display:hover .upload-plus {
-    color: var(--accent-primary);
-    transform: scale(1.1);
-  }
-
-  .drop-zone-hint p {
-    color: var(--text-tertiary);
-    margin: 0;
-  }
-
-  /* 订阅页面样式 */
-  .subscription-page {
-    max-width: 1200px;
-    width: 100%;
-  }
-
-  .subscription-header {
-    text-align: center;
-    margin-bottom: 3rem;
-  }
-
-  .pricing-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-    margin-bottom: 4rem;
-  }
-
+  .theme-toggle:hover { background: var(--bg-tertiary); }
+  .subscription-page { max-width: 1200px; width: 100%; }
+  .pricing-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
   .pricing-card {
     background: var(--bg-secondary);
     border: 2px solid var(--border-color);
     border-radius: 1rem;
     padding: 2rem;
     position: relative;
-    transition: all 0.3s;
   }
+  .pricing-card.featured { border-color: #3b82f6; }
+  .plan-button { width: 100%; padding: 1rem; border: none; border-radius: 0.75rem; font-size: 1rem; font-weight: 600; cursor: pointer; }
+  .plan-button.primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; }
+  .lang-dropdown { background: var(--bg-secondary); border-color: var(--border-color); }
 
-  .pricing-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  /* 公开首页样式 */
+  .landing-page { min-height: 100vh; display: flex; flex-direction: column; }
+  .landing-hero {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
   }
-
-  .pricing-card.featured {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 1px #3b82f6;
-  }
-
-  .plan-badge {
-    position: absolute;
-    top: -12px;
-    right: 20px;
-    padding: 0.25rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-
-  .plan-badge.free {
-    background: var(--bg-hover);
-    color: var(--text-secondary);
-  }
-
-  .plan-badge.pro {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    color: white;
-  }
-
-  .plan-name {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 1rem 0;
-  }
-
-  .plan-price {
-    margin: 1.5rem 0;
-  }
-
-  .plan-price .price {
+  .landing-hero h1 {
     font-size: 3rem;
     font-weight: 700;
-    color: var(--text-primary);
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
-
-  .plan-price .period {
-    font-size: 1rem;
-    color: var(--text-secondary);
-  }
-
-  .plan-features {
-    list-style: none;
-    padding: 0;
-    margin: 2rem 0;
-  }
-
-  .plan-features li {
-    padding: 0.75rem 0;
-    color: var(--text-secondary);
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  .plan-features li:last-child {
-    border-bottom: none;
-  }
-
-  .plan-button {
-    width: 100%;
-    padding: 1rem;
+  .landing-hero p { font-size: 1.25rem; color: var(--text-secondary); max-width: 600px; margin-bottom: 2rem; }
+  .cta-button {
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
     border: none;
     border-radius: 0.75rem;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
   }
-
-  .plan-button.primary {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    color: white;
+  .cta-button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-top: 3rem;
+    max-width: 1000px;
+    width: 100%;
   }
-
-  .plan-button.primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-  }
-
-  .plan-button.current {
-    background: var(--bg-hover);
-    color: var(--text-secondary);
-    cursor: not-allowed;
-  }
-
-  .plan-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .subscription-info {
+  .feature-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 1rem;
-    padding: 2rem;
-  }
-
-  .subscription-info h3 {
-    color: var(--text-primary);
-    margin-top: 0;
-  }
-
-  .faq-item {
-    margin: 1.5rem 0;
-  }
-
-  .faq-item h4 {
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-  }
-
-  .faq-item p {
-    color: var(--text-secondary);
-    margin: 0;
+    padding: 1.5rem;
+    text-align: left;
   }
 `;
 document.head.appendChild(themeStyles);
@@ -322,10 +152,8 @@ if (!publishableKey) {
 
 console.log('Starting Clerk initialization...');
 
-// 解析 Clerk 域名
 const clerkDomain = atob(publishableKey.split('_')[2]).slice(0, -1);
 
-// 加载 Clerk UI bundle
 try {
   await new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -348,7 +176,6 @@ try {
   throw error;
 }
 
-// 初始化 Clerk
 const clerk = new Clerk(publishableKey);
 await clerk.load({
   ui: { ClerkUI: window.__internal_ClerkUICtor },
@@ -356,58 +183,135 @@ await clerk.load({
 
 console.log('Clerk initialized successfully');
 
-// 防止重复渲染的标志
 let isRendering = false;
+let currentPage = 'home';
 
-// 根据登录状态显示不同内容
-if (clerk.user) {
-  console.log('User is signed in');
-  showMainApp(clerk);
-} else {
-  console.log('User is not signed in');
-  showSignIn(clerk);
+function handleRouteChange() {
+  const hash = window.location.hash.slice(1) || 'home';
+  
+  if (PUBLIC_ROUTES.includes(hash)) {
+    currentPage = hash;
+  } else if (PROTECTED_ROUTES.includes(hash)) {
+    if (clerk.user) {
+      currentPage = hash;
+    } else {
+      window.location.hash = '#home';
+      currentPage = 'home';
+    }
+  } else {
+    currentPage = 'home';
+  }
+
+  if (clerk.user) {
+    showMainApp(clerk, currentPage);
+  } else {
+    showPublicPage(currentPage);
+  }
 }
 
-// 监听登录状态变化（只监听一次，避免循环）
-clerk.addListener((state) => {
-  if (isRendering) return; // 防止重复渲染
-
-  console.log('Clerk state changed:', state.user ? 'signed in' : 'signed out');
-
-  if (state.user && !document.querySelector('.main-app')) {
-    // 用户登录且当前不是主应用界面
-    showMainApp(clerk);
-  } else if (!state.user && !document.querySelector('#sign-in')) {
-    // 用户登出且当前不是登录界面
-    showSignIn(clerk);
-  }
-});
-
-// 显示登录界面
-function showSignIn(clerk) {
+// 显示公开页面
+function showPublicPage(page) {
   if (isRendering) return;
   isRendering = true;
 
-  document.getElementById('app').innerHTML = `
-    <div class="container">
-      <h1>Design Hub Pro</h1>
-      <p>请登录以继续使用图像识别服务</p>
-      <div id="sign-in"></div>
-    </div>
-  `;
+  const app = document.getElementById('app');
 
-  const signInDiv = document.getElementById('sign-in');
-  clerk.mountSignIn(signInDiv);
+  switch (page) {
+    case 'home':
+      app.innerHTML = createLandingPage();
+      initLandingPage();
+      break;
+    case 'privacy':
+      app.innerHTML = createPrivacyPolicy();
+      initPrivacyPolicy();
+      break;
+    case 'terms':
+      app.innerHTML = createTermsOfService();
+      initTermsOfService();
+      break;
+    case 'subscription':
+      app.innerHTML = createSubscription();
+      break;
+    default:
+      app.innerHTML = createLandingPage();
+      initLandingPage();
+  }
 
   isRendering = false;
 }
 
-// 显示主应用界面
-function showMainApp(clerk) {
+// 初始化公开首页
+function initLandingPage() {
+  setupHeaderControls();
+}
+
+// 创建公开首页
+function createLandingPage() {
+  return `
+    <div class="landing-page">
+      <header class="app-header">
+        <div class="header-content">
+          <h1 class="app-title">Design Hub Pro</h1>
+          <nav class="app-nav">
+            <a href="#home" class="nav-link ${currentPage === 'home' ? 'active' : ''}" data-page="home">首页</a>
+            <a href="#subscription" class="nav-link" data-page="subscription">定价</a>
+          </nav>
+          <div class="header-right">
+            <button id="themeToggle" class="theme-toggle">
+              <svg id="themeIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+              </svg>
+            </button>
+            <button id="signInBtn" class="cta-button" style="margin-left: 1rem; padding: 0.5rem 1rem;">
+              登录
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="landing-hero">
+        <h1>AI Batch Image Renamer & SEO Optimizer</h1>
+        <p>使用人工智能批量重命名和优化您的图像，提升 SEO 效果和工作效率</p>
+        <button class="cta-button" onclick="navigateTo('dashboard')">
+          开始使用
+        </button>
+
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h3>🤖 AI 智能识别</h3>
+            <p>使用先进的 AI 技术自动识别图像内容</p>
+          </div>
+          <div class="feature-card">
+            <h3>📁 批量处理</h3>
+            <p>一次处理多张图像，效率提升 10 倍</p>
+          </div>
+          <div class="feature-card">
+            <h3>🔍 SEO 优化</h3>
+            <p>生成搜索引擎友好的图像名称</p>
+          </div>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <div class="footer-content">
+          <p class="footer-text">© 2026 Design Hub Pro. All rights reserved.</p>
+          <div class="footer-links">
+            <a href="#privacy" class="footer-link">Privacy Policy</a>
+            <span class="footer-separator">|</span>
+            <a href="#terms" class="footer-link">Terms of Service</a>
+            <span class="footer-separator">|</span>
+            <a href="#subscription" class="footer-link">Pricing</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  `;
+}
+
+// 显示受保护的主应用
+function showMainApp(clerk, page = 'dashboard') {
   if (isRendering) return;
   isRendering = true;
-
-  let currentPage = 'dashboard';
 
   document.getElementById('app').innerHTML = `
     <div class="main-app">
@@ -415,104 +319,62 @@ function showMainApp(clerk) {
         <div class="header-content">
           <h1 class="app-title">Design Hub Pro</h1>
           <nav class="app-nav">
-            <a href="#dashboard" class="nav-link active" data-page="dashboard">${t('nav.dashboard')}</a>
-            <a href="#projects" class="nav-link" data-page="projects">${t('nav.projects')}</a>
-            <a href="#subscription" class="nav-link" data-page="subscription">订阅</a>
+            <a href="#dashboard" class="nav-link ${page === 'dashboard' ? 'active' : ''}" data-page="dashboard">${t('nav.dashboard')}</a>
+            <a href="#projects" class="nav-link ${page === 'projects' ? 'active' : ''}" data-page="projects">${t('nav.projects')}</a>
+            <a href="#subscription" class="nav-link ${page === 'subscription' ? 'active' : ''}" data-page="subscription">订阅</a>
           </nav>
           <div class="header-right">
-            <button id="themeToggle" class="theme-toggle" title="切换主题">
+            <button id="themeToggle" class="theme-toggle">
               <svg id="themeIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
               </svg>
             </button>
-            <div class="lang-selector">
-              <button id="langButton" class="lang-button">
-                <span id="currentLangFlag">${getCurrentLanguage() === 'zh-CN' ? '🇨🇳' : '🇺🇸'}</span>
-                <svg class="lang-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </button>
-              <div id="langDropdown" class="lang-dropdown hidden">
-                <button onclick="changeLang('zh-CN', '🇨🇳')" class="lang-option">
-                  <span>🇨🇳</span>
-                  <span>简体中文</span>
-                </button>
-                <button onclick="changeLang('en', '🇺🇸')" class="lang-option">
-                  <span>🇺🇸</span>
-                  <span>English</span>
-                </button>
-              </div>
-            </div>
             <div id="user-button" class="user-button-container"></div>
           </div>
         </div>
       </header>
 
       <main class="app-main" id="app-main">
-        ${createDashboard()}
+        ${getPageContent(page, clerk)}
       </main>
 
       <footer class="app-footer">
         <div class="footer-content">
           <p class="footer-text">© 2026 Design Hub Pro. All rights reserved.</p>
           <div class="footer-links">
-            <a href="#privacy" class="footer-link" data-page="privacy">Privacy Policy</a>
+            <a href="#privacy" class="footer-link">Privacy Policy</a>
             <span class="footer-separator">|</span>
-            <a href="#terms" class="footer-link" data-page="terms">Terms of Service</a>
+            <a href="#terms" class="footer-link">Terms of Service</a>
           </div>
         </div>
       </footer>
     </div>
   `;
 
-  // 挂载用户按钮
   const userButtonDiv = document.getElementById('user-button');
-  clerk.mountUserButton(userButtonDiv);
-
-  // 初始化 Dashboard
-  initDashboard();
-
-  // 语言切换功能
-  const langButton = document.getElementById('langButton');
-  const langDropdown = document.getElementById('langDropdown');
-
-  if (langButton && langDropdown) {
-    langButton.addEventListener('click', (e) => {
-      e.stopPropagation();
-      langDropdown.classList.toggle('hidden');
-    });
-
-    // 点击外部关闭下拉菜单
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.lang-selector')) {
-        langDropdown.classList.add('hidden');
-      }
-    });
+  if (userButtonDiv) {
+    clerk.mountUserButton(userButtonDiv);
   }
 
-  // 全局语言切换函数
-  window.changeLang = function(lang, flag) {
-    setLanguage(lang);
-    langDropdown?.classList.add('hidden');
+  setupHeaderControls();
+  initPage(page, clerk);
+  setupNavigation();
+  isRendering = false;
+}
 
-    // 重新渲染整个应用以应用新语言
-    isRendering = false; // 重置标志以允许重新渲染
-    showMainApp(clerk);
-  };
-
-  // 主题切换功能
+// 设置头部控制（主题切换等）
+function setupHeaderControls() {
   const themeToggle = document.getElementById('themeToggle');
   const themeIcon = document.getElementById('themeIcon');
 
-  // 更新图标
   function updateThemeIcon() {
-    const currentTheme = ThemeManager.getCurrentTheme();
-    if (currentTheme === 'light') {
-      // 太阳图标 (浅色模式)
-      themeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
-    } else {
-      // 月亮图标 (深色模式)
-      themeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
+    if (themeIcon) {
+      const currentTheme = ThemeManager.getCurrentTheme();
+      if (currentTheme === 'light') {
+        themeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
+      } else {
+        themeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
+      }
     }
   }
 
@@ -525,45 +387,72 @@ function showMainApp(clerk) {
     });
   }
 
-  // 页面导航 (包括 header nav-links 和 footer links)
+  // 登录按钮
+  const signInBtn = document.getElementById('signInBtn');
+  if (signInBtn) {
+    signInBtn.addEventListener('click', () => {
+      const modal = document.createElement('div');
+      modal.id = 'sign-in-modal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;';
+      modal.innerHTML = '<div id="sign-in"></div><button id="closeModal" style="position:absolute;top:20px;right:20px;background:#333;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;">关闭</button>';
+      document.body.appendChild(modal);
+      const signInDiv = document.getElementById('sign-in');
+      clerk.mountSignIn(signInDiv);
+      document.getElementById('closeModal').addEventListener('click', () => modal.remove());
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    });
+  }
+}
+
+// 获取页面内容
+function getPageContent(page, clerk) {
+  switch (page) {
+    case 'dashboard': return createDashboard();
+    case 'projects': return createProjects();
+    case 'apiSettings': return createApiSettings();
+    case 'subscription': return createSubscription();
+    case 'privacy': return createPrivacyPolicy();
+    case 'terms': return createTermsOfService();
+    default: return createDashboard();
+  }
+}
+
+// 初始化页面
+function initPage(page, clerk) {
+  switch (page) {
+    case 'dashboard': initDashboard(); break;
+    case 'projects': initProjects(); break;
+    case 'apiSettings': initApiSettings(clerk); break;
+    case 'subscription': initSubscription(clerk); break;
+    case 'privacy': initPrivacyPolicy(); break;
+    case 'terms': initTermsOfService(); break;
+  }
+}
+
+// 设置导航
+function setupNavigation() {
   document.querySelectorAll('[data-page]').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      const page = link.dataset.page;
-      if (page === currentPage) return;
-
-      currentPage = page;
-
-      // 更新导航状态
-      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-      link.classList.add('active');
-
-      // 切换页面内容
-      const mainContent = document.getElementById('app-main');
-      switch (page) {
-        case 'dashboard':
-          mainContent.innerHTML = createDashboard();
-          initDashboard();
-          break;
-        case 'projects':
-          mainContent.innerHTML = createProjects();
-          initProjects();
-          break;
-        case 'subscription':
-          mainContent.innerHTML = createSubscription();
-          initSubscription(clerk);
-          break;
-        case 'privacy':
-          mainContent.innerHTML = createPrivacyPolicy();
-          initPrivacyPolicy();
-          break;
-        case 'terms':
-          mainContent.innerHTML = createTermsOfService();
-          initTermsOfService();
-          break;
-      }
+      navigateTo(link.dataset.page);
     });
   });
-
-  isRendering = false;
 }
+
+// 导航函数
+window.navigateTo = function(page) {
+  window.location.hash = '#' + page;
+};
+
+// 监听路由变化
+window.addEventListener('hashchange', handleRouteChange);
+
+// 监听登录状态
+clerk.addListener((state) => {
+  if (!isRendering) {
+    handleRouteChange();
+  }
+});
+
+// 初始化
+handleRouteChange();
