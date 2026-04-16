@@ -121,11 +121,9 @@ export function createDashboard() {
   `;
 }
 
-// Dashboard 功能逻辑
 export function initDashboard() {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-  // 检查 API 配置
   const apiConfig = JSON.parse(localStorage.getItem('apiConfig') || '{}');
   if (apiConfig.provider && apiConfig.apiKey) {
     AppState.isConnected = true;
@@ -133,13 +131,11 @@ export function initDashboard() {
 
   updateConnectionUI();
 
-  // 如果有已上传的图片，恢复显示
   if (AppState.currentQueue.length > 0) {
     displayCurrentImage();
     enableButtons();
   }
 
-  // 恢复模式选择
   document.querySelectorAll('.mode-option').forEach(opt => {
     opt.classList.toggle('active', opt.dataset.mode === AppState.selectedMode);
   });
@@ -147,10 +143,17 @@ export function initDashboard() {
     document.getElementById('customPromptSection')?.classList.remove('hidden');
   }
 
-  // 真实 API 调用函数
   async function fetchAnalyzeWithTimeout(file, mode) {
+    const currentConfig = JSON.parse(localStorage.getItem('apiConfig') || '{}');
+
+    if (!currentConfig.provider || !currentConfig.apiKey) {
+      console.error('API未配置，请先在 API Settings 中配置');
+      await new Promise(r => setTimeout(r, 500));
+      return '请先配置API密钥';
+    }
+
     try {
-      console.log('开始API调用:', file.name, 'mode:', mode);
+      console.log('开始API调用:', file.name, 'mode:', mode, 'provider:', currentConfig.provider);
       const formData = new FormData();
       formData.append('image', file);
       formData.append('mode', mode);
@@ -162,14 +165,18 @@ export function initDashboard() {
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.error('请求超时，30秒未响应');
+        console.error('请求超时，60秒未响应');
         controller.abort();
-      }, 30000);
+      }, 60000);
 
-      console.log('发送请求到:', `${API_BASE}/analyze`);
-      const response = await fetch(`${API_BASE}/analyze`, {
+      console.log('发送请求到:', `${API_BASE}/api/analyze`);
+      const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
         body: formData,
+        headers: {
+          'X-API-Provider': currentConfig.provider,
+          'X-API-Key': currentConfig.apiKey,
+        },
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -183,10 +190,12 @@ export function initDashboard() {
 
       const data = await response.json();
       console.log('解析结果:', data);
-      return data.success ? data.result : "分析异常";
+      return data.success ? data.result : `分析失败: ${data.error || '未知错误'}`;
     } catch (error) {
       console.error('API调用失败:', error.name, error.message);
-      // 网络不通或超时，平滑走本地模拟逻辑 (无感降级)
+      if (error.name === 'AbortError') {
+        return '请求超时，请重试';
+      }
       await new Promise(r => setTimeout(r, 800));
       if (mode === 'text') return `AI_Image_${Math.floor(Math.random()*1000)}`;
       if (mode === 'image') return `Detail_Extracted_${Math.floor(Math.random()*100)}`;

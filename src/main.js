@@ -10,11 +10,7 @@ import { t, setLanguage, getCurrentLanguage } from './utils/i18n.js';
 
 console.log('Main.js loaded');
 
-// 公开路由 - 允许任何人（包括爬虫）访问，无需登录
-const PUBLIC_ROUTES = ['home', 'privacy', 'terms', 'subscription'];
-
-// 受保护路由 - 需要登录才能访问
-const PROTECTED_ROUTES = ['dashboard', 'projects', 'apiSettings'];
+const ALL_ROUTES = ['home', 'dashboard', 'projects', 'apiSettings', 'subscription', 'privacy', 'terms'];
 
 // 主题管理
 const ThemeManager = {
@@ -189,23 +185,16 @@ let currentPage = 'home';
 function handleRouteChange() {
   const hash = window.location.hash.slice(1) || 'home';
   
-  if (PUBLIC_ROUTES.includes(hash)) {
+  if (ALL_ROUTES.includes(hash)) {
     currentPage = hash;
-  } else if (PROTECTED_ROUTES.includes(hash)) {
-    if (clerk.user) {
-      currentPage = hash;
-    } else {
-      window.location.hash = '#home';
-      currentPage = 'home';
-    }
   } else {
     currentPage = 'home';
   }
 
-  if (clerk.user) {
-    showMainApp(clerk, currentPage);
-  } else {
+  if (currentPage === 'home' || currentPage === 'privacy' || currentPage === 'terms') {
     showPublicPage(currentPage);
+  } else {
+    showMainApp(clerk, currentPage);
   }
 }
 
@@ -308,10 +297,14 @@ function createLandingPage() {
   `;
 }
 
-// 显示受保护的主应用
 function showMainApp(clerk, page = 'dashboard') {
   if (isRendering) return;
   isRendering = true;
+
+  const isLoggedIn = !!clerk.user;
+  const userButtonHtml = isLoggedIn 
+    ? '<div id="user-button" class="user-button-container"></div>'
+    : '<button id="signInBtn" class="cta-button" style="padding: 0.5rem 1rem; font-size: 0.875rem;">登录</button>';
 
   document.getElementById('app').innerHTML = `
     <div class="main-app">
@@ -321,6 +314,7 @@ function showMainApp(clerk, page = 'dashboard') {
           <nav class="app-nav">
             <a href="#dashboard" class="nav-link ${page === 'dashboard' ? 'active' : ''}" data-page="dashboard">${t('nav.dashboard')}</a>
             <a href="#projects" class="nav-link ${page === 'projects' ? 'active' : ''}" data-page="projects">${t('nav.projects')}</a>
+            <a href="#apiSettings" class="nav-link ${page === 'apiSettings' ? 'active' : ''}" data-page="apiSettings">${t('nav.apiSettings')}</a>
             <a href="#subscription" class="nav-link ${page === 'subscription' ? 'active' : ''}" data-page="subscription">订阅</a>
           </nav>
           <div class="header-right">
@@ -329,7 +323,7 @@ function showMainApp(clerk, page = 'dashboard') {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
               </svg>
             </button>
-            <div id="user-button" class="user-button-container"></div>
+            ${userButtonHtml}
           </div>
         </div>
       </header>
@@ -351,9 +345,11 @@ function showMainApp(clerk, page = 'dashboard') {
     </div>
   `;
 
-  const userButtonDiv = document.getElementById('user-button');
-  if (userButtonDiv) {
-    clerk.mountUserButton(userButtonDiv);
+  if (isLoggedIn) {
+    const userButtonDiv = document.getElementById('user-button');
+    if (userButtonDiv) {
+      clerk.mountUserButton(userButtonDiv);
+    }
   }
 
   setupHeaderControls();

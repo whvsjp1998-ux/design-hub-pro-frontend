@@ -102,11 +102,11 @@ export function createApiSettings() {
   `;
 }
 
-// API Settings 功能逻辑
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 export function initApiSettings() {
   let selectedProvider = 'openai';
 
-  // 加载已保存的配置
   const apiConfig = JSON.parse(localStorage.getItem('apiConfig') || '{}');
   if (apiConfig.provider && apiConfig.apiKey) {
     selectedProvider = apiConfig.provider;
@@ -115,10 +115,9 @@ export function initApiSettings() {
     selectProvider(selectedProvider);
   }
 
-  // Provider 选择
   document.querySelectorAll('.provider-card').forEach(card => {
     card.addEventListener('click', (e) => {
-      if (e.target.closest('a')) return; // 不拦截链接点击
+      if (e.target.closest('a')) return;
       selectedProvider = card.dataset.provider;
       selectProvider(selectedProvider);
     });
@@ -130,7 +129,6 @@ export function initApiSettings() {
     });
   }
 
-  // 切换密钥可见性
   const btnToggle = document.getElementById('btnToggleKey');
   const apiKeyInput = document.getElementById('apiKeyInput');
   if (btnToggle && apiKeyInput) {
@@ -139,7 +137,6 @@ export function initApiSettings() {
     };
   }
 
-  // 测试连接
   const btnTest = document.getElementById('btnTestConfig');
   if (btnTest) {
     btnTest.onclick = async () => {
@@ -153,9 +150,23 @@ export function initApiSettings() {
       if (btnText) btnText.textContent = t('apiSettings.testing');
       btnTest.disabled = true;
 
-      await new Promise(r => setTimeout(r, 1200));
+      try {
+        const response = await fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: selectedProvider, apiKey: key })
+        });
+        const data = await response.json();
+        if (data.success) {
+          if (btnText) btnText.textContent = t('apiSettings.testSuccess');
+        } else {
+          if (btnText) btnText.textContent = '连接失败';
+        }
+      } catch (error) {
+        console.error('Test connection error:', error);
+        if (btnText) btnText.textContent = '连接失败';
+      }
 
-      if (btnText) btnText.textContent = t('apiSettings.testSuccess');
       setTimeout(() => {
         if (btnText) btnText.textContent = t('apiSettings.testConnection');
         btnTest.disabled = false;
@@ -163,7 +174,6 @@ export function initApiSettings() {
     };
   }
 
-  // 保存配置
   const btnSave = document.getElementById('btnSaveConfig');
   if (btnSave) {
     btnSave.onclick = async () => {
@@ -177,16 +187,33 @@ export function initApiSettings() {
       if (btnText) btnText.textContent = t('apiSettings.saving');
       btnSave.disabled = true;
 
-      await new Promise(r => setTimeout(r, 800));
-
-      localStorage.setItem('apiConfig', JSON.stringify({
+      const configData = {
         provider: selectedProvider,
         apiKey: key,
         connectedAt: new Date().toISOString()
-      }));
+      };
 
-      btnSave.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-      if (btnText) btnText.textContent = t('apiSettings.saveSuccess');
+      localStorage.setItem('apiConfig', JSON.stringify(configData));
+
+      try {
+        const response = await fetch(`${API_BASE}/api/config`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: selectedProvider, apiKey: key })
+        });
+        const data = await response.json();
+        if (data.success) {
+          btnSave.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+          if (btnText) btnText.textContent = t('apiSettings.saveSuccess');
+        } else {
+          btnSave.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+          if (btnText) btnText.textContent = '同步失败';
+        }
+      } catch (error) {
+        console.error('Save config to backend error:', error);
+        btnSave.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+        if (btnText) btnText.textContent = '本地已保存';
+      }
 
       setTimeout(() => {
         btnSave.style.background = '';
