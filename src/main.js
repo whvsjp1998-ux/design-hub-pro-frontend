@@ -294,23 +294,23 @@ function createLandingPage() {
 
       <main class="landing-hero">
         <h1>AI Batch Image Renamer & SEO Optimizer</h1>
-        <p>使用人工智能批量重命名和优化您的图像，提升 SEO 效果和工作效率</p>
+        <p>Intelligently rename and optimize your images in bulk with AI — boost SEO and workflow efficiency</p>
         <button class="cta-button" onclick="navigateTo('dashboard')">
-          开始使用
+          Get Started
         </button>
 
         <div class="feature-grid">
           <div class="feature-card">
-            <h3>🤖 AI 智能识别</h3>
-            <p>使用先进的 AI 技术自动识别图像内容</p>
+            <h3>🤖 AI Smart Recognition</h3>
+            <p>Automatically identify image content with advanced AI technology</p>
           </div>
           <div class="feature-card">
-            <h3>📁 批量处理</h3>
-            <p>一次处理多张图像，效率提升 10 倍</p>
+            <h3>📁 Batch Processing</h3>
+            <p>Process multiple images at once — 10x efficiency boost</p>
           </div>
           <div class="feature-card">
-            <h3>🔍 SEO 优化</h3>
-            <p>生成搜索引擎友好的图像名称</p>
+            <h3>🎯 99% Recognition Rate</h3>
+            <p>Industry-leading accuracy for reliable, consistent results</p>
           </div>
         </div>
       </main>
