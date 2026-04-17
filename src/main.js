@@ -76,8 +76,10 @@ themeStyles.textContent = `
     border: none;
     border-radius: 0.5rem;
     cursor: pointer;
+    color: var(--text-secondary);
   }
-  .theme-toggle:hover { background: var(--bg-tertiary); }
+  .theme-toggle:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+  .theme-toggle svg { width: 20px; height: 20px; }
   .lang-dropdown { background: var(--bg-secondary); border-color: var(--border-color); }
 
   /* 公开首页样式 */
